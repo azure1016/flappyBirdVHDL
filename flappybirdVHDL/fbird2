@@ -1,0 +1,324 @@
+library ieee;
+use ieee.std_logic_1164.all;
+
+entity fbird is
+port(
+    clk_1khz                        :	in std_logic;
+reset,sw_1						   	:	in std_logic;
+	btn_0,btn_1,btn_2,btn_6,btn_7  	:	in std_logic;
+	led_row,led_g,led_r				:	out std_logic_vector(7 downto 0);
+shumaguan           			:	out std_logic_vector(6 downto 0);
+disp							:	out std_logic_vector(7 downto 0)
+	
+	);
+end fbird;
+
+architecture behav of fbird is
+
+	signal clk_100hz, clk_1hz            : 	std_logic;
+	signal scoreL                        :	integer range 0 to 12;
+	signal cnt3                         :   integer range 0 to 100;
+	signal cnt2                         :	integer range 0 to 50;
+	signal pwm                          :	integer range 0 to 16;
+	signal cnt1, cnt4, start          :	integer range 0 to 10;
+	signal flag0, flag1, flag2, flag4, result       :	integer range 0 to 10;
+	signal shumaguan0, shumaguan1        : 	std_logic_vector(6 downto 0);
+signal btn1, btn2, btn6, btn7          : 	std_logic;
+	signal ledrow, ledrow1, ledred, ledjudge:	std_logic_vector(7 downto 0);
+signal cover                        :	std_logic_vector(7 downto 0);
+
+type matrix_index is array(7 downto 0) of std_logic_vector(11 downto 0);
+signal serial                   :	matrix_index;
+	type state_type1 is (s0,s1);			
+		signal state1                   : 	state_type1;
+	type state_type2 is(s0,s1,s2,s3,s4,s5,s6,s7);
+		signal state2                   :	state_type2;
+	type state_type3 is(s0,s1,s2,s3,s4,s5);
+		signal state3                   :	state_type3;
+	type state_type4 is(s0,s1,s2,s3,s4,s5,s6,s7);
+		signal state4                   :	state_type4;
+---------------------------------------------------------------------------			
+begin
+
+--CLOCK DIVIDE
+p0:	process(clk_1khz)
+
+    begin
+		if(clk_1khz'event and clk_1khz='1') then
+			if cnt1=4 then
+
+                cnt1<=0;clk_100hz<=not clk_100hz;--100hz
+			else
+				cnt1<=cnt1+1;
+			end if;
+		end if;
+	
+		
+		if (clk_100hz'event and clk_100hz='1') then
+			if cnt2=49 then
+
+                cnt2<=0;clk_1hz<=not clk_1hz;--1hz
+			else
+				cnt2<=cnt2+1;
+			end if;
+		end if;
+		
+	end process p0;
+---------------------------------------------------------------------------
+--DIGITAL SEG7
+p1:	process(clk_100hz, reset)
+
+    begin 
+	if(reset='0') then
+
+        disp<="11111111";
+		ledrow<="11101111";
+	else
+		if( clk_100hz'event and clk_100hz='1') then
+			case scoreL is
+				when 0=> shumaguan1<="1111110";shumaguan0<="1111110";
+				when 1=> shumaguan1<="1111110";shumaguan0<="0110000";
+				when 2=> shumaguan1<="1111110";shumaguan0<="1101101";
+				when 3=> shumaguan1<="1111110";shumaguan0<="1111001";
+				when 4=> shumaguan1<="1111110";shumaguan0<="0110011";
+				when 5=> shumaguan1<="1111110";shumaguan0<="1011011";
+				when 6=> shumaguan1<="1111110";shumaguan0<="1011111";
+				when 7=> shumaguan1<="1111110";shumaguan0<="1110000";
+				when 8=> shumaguan1<="1111110";shumaguan0<="1111111";
+				when 9=> shumaguan1<="1111110";shumaguan0<="1111011";
+				when 10=>shumaguan1<="0110000";shumaguan0<="1111110";
+				when 11=>shumaguan1<="0110000";shumaguan0<="0110000";
+				when 12=>shumaguan1<="0110000";shumaguan0<="1101101";
+				when others => shumaguan1 <= "0000000"; shumaguan0<="0000000";
+			end case;
+			
+			case state1 is
+				when s0 => shumaguan <= shumaguan0; disp<="11111110";state1<=s1;
+				when s1 => shumaguan <= shumaguan1; disp<="11111101";state1<=s0;
+			end case;
+			
+			if (btn_1='1' and btn_2 = '0') then
+
+                flag1<=1;
+				cnt3<=cnt3+1;
+
+            elsif(btn_2= '1' and btn_1 = '0') then
+
+                flag1<=2;
+				cnt3<=cnt3+1;
+
+            elsif(btn_2= '0' and btn_1 = '0') then
+
+                flag1<=4;
+				cnt3<=cnt3+1;
+			else
+				flag1<=0;
+				cnt3<=0;
+			end if;
+			if(flag1=1 and cnt3>20 ) then --priventing the tremble of pressing a button
+			   if(ledrow="11111110")then
+
+                cnt3<=0;
+			  else
+				cnt3<=0;
+				ledrow<=ledrow(0) & ledrow(7 downto 1);
+end if;
+			end if;
+			if(flag1=2 and cnt3>20 ) then
+			   if(ledrow="01111111")then
+
+               cnt3<=0;
+			   else
+				cnt3<=0;
+				ledrow<=ledrow(6 downto 0) & ledrow(7);
+end if;
+			end if;
+			if(flag1=4 and cnt3>80  ) then
+			  if(sw_1='1') then
+			  if(ledrow="11111110")then
+
+                cnt3<=0;
+			  else
+				cnt3<=0;
+				ledrow<=ledrow(0) & ledrow(7 downto 1);
+end if;
+
+              elsif(sw_1= '0') then
+			   if(ledrow="11111110")then
+
+                cnt3<=0;
+			  else
+				cnt3<=0;
+				ledrow<=ledrow(0) & ledrow(7 downto 1);
+end if;
+				end if;
+			 	
+			end if;
+		end if;
+	end if;		
+	end process p1;
+---------------------------------------------------------------------------	
+--LED MATRIX
+p2:	process(clk_1khz, clk_1hz, btn_1, btn_2, reset)
+
+    begin
+		if(reset='0') then	--must have a clear flag, using as a initial block
+
+            result<=0;
+			start<=0;
+			cover<="00000000";
+			led_r<="00000000";
+			led_g<="00000000";
+
+            pipe(7)<="101010101000";pipe(6)<="001010101000";
+
+            pipe(5)<="001000101000";pipe(4)<="001000100010";
+
+            pipe(3)<="100000100010";pipe(2)<="100010000010";
+
+            pipe(1)<="100010001010";pipe(0)<="101010001010";
+		else
+		------------------------------------------------------
+		if(clk_1khz'event and clk_1khz='1') then
+		if(result=0) then
+			if(flag0=1) then
+
+                led_g<="00000000";	--care for !
+				led_r<="00010000";
+				led_row<=ledrow;
+				if pwm<1 then
+
+                    pwm<=pwm+1;
+				else
+					flag0<=0;
+					pwm<=0;
+				end if;
+			else
+				led_r<="00000000";	--care for!
+				case state4 is
+					when s0 => led_row <= "01111111"; led_g<=(pipe(7)(7 downto 0) and cover);state4<=s1;
+					when s1 => led_row <= "10111111"; led_g<=(pipe(6)(7 downto 0) and cover);state4<=s2;
+					when s2 => led_row <= "11011111"; led_g<=(pipe(5)(7 downto 0) and cover);state4<=s3;
+					when s3 => led_row <= "11101111"; led_g<=(pipe(4)(7 downto 0) and cover);state4<=s4;
+					when s4 => led_row <= "11110111"; led_g<=(pipe(3)(7 downto 0) and cover);state4<=s5;
+					when s5 => led_row <= "11111011"; led_g<=(pipe(2)(7 downto 0) and cover);state4<=s6;
+					when s6 => led_row <= "11111101"; led_g<=(pipe(1)(7 downto 0) and cover);state4<=s7;
+					when s7 => led_row <= "11111110"; led_g<=(pipe(0)(7 downto 0) and cover);state4<=s0;
+				end case;
+				if start>=5 then
+
+                    ledjudge<=pipe(7)(4) & pipe(6)(4) & pipe(5)(4) & pipe(4)(4) & pipe(3)(4) & pipe(2)(4) & pipe(1)(4) & pipe(0)(4);
+				end if;
+				if pwm<15 then
+
+                    pwm<=pwm+1;
+				else
+					flag0<=1;
+					pwm<=0;
+				end if;
+				--judge the states-----------------------------------------
+				if (ledrow or(not ledjudge))/="11111111" then
+
+                    result<=1;
+				end if;
+				if(scoreL=12) then
+
+                    result<=2;
+				end if;
+				-----------------------------------------------------------
+			end if;		
+
+        elsif(result= 1) then
+
+            led_g<="00000000";
+			ledjudge<="00000000";
+			case state4 is
+				when s0 => led_row <= "01111111"; led_r<="00000000";state4<=s1;
+				when s1 => led_row <= "10111111"; led_r<="01000010";state4<=s2;
+				when s2 => led_row <= "11011111"; led_r<="00100100";state4<=s3;
+				when s3 => led_row <= "11101111"; led_r<="00011000";state4<=s4;
+				when s4 => led_row <= "11110111"; led_r<="00011000";state4<=s5;
+				when s5 => led_row <= "11111011"; led_r<="00100100";state4<=s6;
+				when s6 => led_row <= "11111101"; led_r<="01000010";state4<=s7;
+				when s7 => led_row <= "11111110"; led_r<="00000000";state4<=s0;
+			end case;
+
+        elsif(result= 2) then
+
+            led_r<="00000000";
+			ledjudge<="00000000";
+			case state4 is
+				when s0 => led_row <= "01111111"; led_g<="00000000";state4<=s1;
+				when s1 => led_row <= "10111111"; led_g<="01000010";state4<=s2;
+				when s2 => led_row <= "11011111"; led_g<="01000010";state4<=s3;
+				when s3 => led_row <= "11101111"; led_g<="00100100";state4<=s4;
+				when s4 => led_row <= "11110111"; led_g<="00100100";state4<=s5;
+				when s5 => led_row <= "11111011"; led_g<="00011000";state4<=s6;
+				when s6 => led_row <= "11111101"; led_g<="00011000";state4<=s7;
+				when s7 => led_row <= "11111110"; led_g<="00000000";state4<=s0;
+			end case;
+		end if;
+		end if;
+		------------------------------------------------------
+		--if (result=0) then
+		if(clk_1hz'event and clk_1hz='0') then
+		if start<8 then
+			case start is
+
+                when 0=> cover<="00000001";
+				when 1=> cover<="00000011";
+				when 2=> cover<="00000111";
+				when 3=> cover<="00001111";
+				when 4=> cover<="00011111";
+				when 5=> cover<="00111111";
+				when 6=> cover<="01111111";
+				when 7=> cover<="11111111";
+				when others => cover <= "11111111";
+end case;
+				start<=start+1;
+			else
+				cover<="11111111";
+		end if;
+
+            pipe(7)<=pipe(7)(10 downto 0) & pipe(7)(11);
+
+            pipe(6)<=pipe(6)(10 downto 0) & pipe(6)(11);
+
+            pipe(5)<=pipe(5)(10 downto 0) & pipe(5)(11);
+
+            pipe(4)<=pipe(4)(10 downto 0) & pipe(4)(11);
+
+            pipe(3)<=pipe(3)(10 downto 0) & pipe(3)(11);
+
+            pipe(2)<=pipe(2)(10 downto 0) & pipe(2)(11);
+
+            pipe(1)<=pipe(1)(10 downto 0) & pipe(1)(11);
+
+            pipe(0)<=pipe(0)(10 downto 0) & pipe(0)(11);
+		end if;
+		------------------------------------------------------
+		end if;
+	end process p2;
+---------------------------------------------------------------------------
+p3:	process(clk_1hz, ledjudge)
+
+    begin
+		if(reset='0') then
+
+            scoreL<=0;
+		else
+		if(clk_1hz'event and clk_1hz='1') then
+			if((not ledjudge)/="11111111") then
+
+                scoreL<=scoreL+1;
+				if(scoreL=12) then
+
+                    scoreL<=12;
+				end if;
+			end if;
+		end if;
+		end if;
+	end process p3;
+---------------------------------------------------------------------------
+end;
+---------------------------------------------------------------------------
