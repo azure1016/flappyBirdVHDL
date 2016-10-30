@@ -17,15 +17,15 @@ architecture behav of fbird is
 
 	signal clk_100hz, clk_1hz            : 	std_logic;
 	signal scoreL                        :	integer range 0 to 12;
-	signal cnt3                         :   integer range 0 to 100;
+	signal steps                         :   integer range 0 to 100;
 	signal cnt2                         :	integer range 0 to 50;
-	signal pwm                          :	integer range 0 to 16;
+	signal pwm                          :	integer range 0 to 16;									--pwm是延时
 	signal cnt1, cnt4, start          :	integer range 0 to 10;
 	signal flag0, flag1, flag2, flag4, result       :	integer range 0 to 10;
 	signal shumaguan0, shumaguan1        : 	std_logic_vector(6 downto 0);
 signal btn1, btn2, btn6, btn7          : 	std_logic;
-	signal ledrow, ledrow1, ledred, ledjudge:	std_logic_vector(7 downto 0);
-signal cover                        :	std_logic_vector(7 downto 0);
+	signal ledbirdrow, ledrow1, ledred, ledjudge:	std_logic_vector(7 downto 0);
+signal cover                        :	std_logic_vector(7 downto 0);								--cover的作用是解决游戏刚开始时不显示左边的水管的问题
 
 type matrix_index is array(7 downto 0) of std_logic_vector(11 downto 0);
 signal serial                   :	matrix_index;
@@ -65,14 +65,14 @@ p0:	process(clk_1khz)
 		
 	end process p0;
 ---------------------------------------------------------------------------
---DIGITAL SEG7
+--数码管译码及键盘控制画面变化
 p1:	process(clk_100hz, reset)
 
     begin 
 	if(reset='0') then
 
         disp<="11111111";
-		ledrow<="11101111";
+		ledbirdrow<="11101111";
 	else
 		if( clk_100hz'event and clk_100hz='1') then
 			case scoreL is
@@ -100,56 +100,56 @@ p1:	process(clk_100hz, reset)
 			if (btn_1='1' and btn_2 = '0') then
 
                 flag1<=1;
-				cnt3<=cnt3+1;
+				steps<=steps+1;
 
             elsif(btn_2= '1' and btn_1 = '0') then
 
                 flag1<=2;
-				cnt3<=cnt3+1;
+				steps<=steps+1;
 
             elsif(btn_2= '0' and btn_1 = '0') then
 
                 flag1<=4;
-				cnt3<=cnt3+1;
+				steps<=steps+1;
 			else
 				flag1<=0;
-				cnt3<=0;
+				steps<=0;
 			end if;
-			if(flag1=1 and cnt3>20 ) then --priventing the tremble of pressing a button
-			   if(ledrow="11111110")then
+			if(flag1=1 and steps>20 ) then --priventing the tremble of pressing a button
+			   if(ledbirdrow="11111110")then
 
-                cnt3<=0;
+                steps<=0;
 			  else
-				cnt3<=0;
-				ledrow<=ledrow(0) & ledrow(7 downto 1);
+				steps<=0;
+				ledbirdrow<=ledbirdrow(0) &ledbirdrow(7 downto 1);
 end if;
 			end if;
-			if(flag1=2 and cnt3>20 ) then
-			   if(ledrow="01111111")then
+			if(flag1=2 and steps>20 ) then
+			   if(ledbirdrow="01111111")then   --solve the problem of "up-overflow" 
 
-               cnt3<=0;
+               steps<=0;
 			   else
-				cnt3<=0;
-				ledrow<=ledrow(6 downto 0) & ledrow(7);
+				steps<=0;
+				ledbirdrow<=ledbirdrow(6 downto 0) & ledbirdrow(7);
 end if;
 			end if;
-			if(flag1=4 and cnt3>80  ) then
-			  if(sw_1='1') then
-			  if(ledrow="11111110")then
+			if(flag1=4 and steps>80  ) then												--删了这段会怎么样？steps>20 VS >80是这两段的区别。
+			  if(sw_1='1') then															--记为段A
+			  if(ledbirdrow="11111110")then		 --solve the problem of "down-overflow" 
 
-                cnt3<=0;
+                steps<=0;
 			  else
-				cnt3<=0;
-				ledrow<=ledrow(0) & ledrow(7 downto 1);
+				steps<=0;
+				ledbirdrow<=ledbirdrow(0) & ledbirdrow(7 downto 1);								
 end if;
 
-              elsif(sw_1= '0') then
-			   if(ledrow="11111110")then
+              elsif(sw_1= '0') then														--记为段B。B和A几乎一样
+			   if(ledbirdrow="11111110")then
 
-                cnt3<=0;
+                steps<=0;
 			  else
-				cnt3<=0;
-				ledrow<=ledrow(0) & ledrow(7 downto 1);
+				steps<=0;
+				ledbirdrow<=ledbirdrow(0) & ledbirdrow(7 downto 1);
 end if;
 				end if;
 			 	
@@ -158,56 +158,57 @@ end if;
 	end if;		
 	end process p1;
 ---------------------------------------------------------------------------	
---LED MATRIX
-p2:	process(clk_1khz, clk_1hz, btn_1, btn_2, reset)
+--水管阵列
+p2:	process(clk_1khz, clk_1hz, btn_1, btn_2, reset)										--这里貌似不必有btn,reset?删去reset时记得要调试一下
 
     begin
 		if(reset='0') then	--must have a clear flag, using as a initial block
 
             result<=0;
 			start<=0;
-			cover<="00000000";
+			cover<="00000000";														 	--给0就是暗，给1才是亮
 			led_r<="00000000";
 			led_g<="00000000";
 
-            pipe(7)<="101010101000";pipe(6)<="001010101000";
-
-            pipe(5)<="001000101000";pipe(4)<="001000100010";
-
-            pipe(3)<="100000100010";pipe(2)<="100010000010";
-
-            pipe(1)<="100010001010";pipe(0)<="101010001010";
+            pipe(7)<="101010101000";  													--修改一下水管阵列看看会不会有死亡判断发生错误或者某行不显示的神奇问题
+			pipe(6)<="001010101000";
+			pipe(5)<="001000101000";
+			pipe(4)<="001000100010";
+			pipe(3)<="100000100010";
+			pipe(2)<="100010000010";
+			pipe(1)<="100010001010";
+			pipe(0)<="101010001010";
 		else
 		------------------------------------------------------
 		if(clk_1khz'event and clk_1khz='1') then
-		if(result=0) then
+		if(result=0) then																--result=0代表游戏可以继续！
 			if(flag0=1) then
 
                 led_g<="00000000";	--care for !
 				led_r<="00010000";
-				led_row<=ledrow;
-				if pwm<1 then
+				led_row<=ledbirdrow;														
+				if pwm<1 then															--PWM貌似是用来控制隔一列输出水管的？？flag0的周期是pwm的2倍。
 
                     pwm<=pwm+1;
 				else
-					flag0<=0;
+					flag0<=0;															--2<=pwm<=14时，flag0=0?
 					pwm<=0;
 				end if;
 			else
 				led_r<="00000000";	--care for!
 				case state4 is
-					when s0 => led_row <= "01111111"; led_g<=(pipe(7)(7 downto 0) and cover);state4<=s1;
-					when s1 => led_row <= "10111111"; led_g<=(pipe(6)(7 downto 0) and cover);state4<=s2;
-					when s2 => led_row <= "11011111"; led_g<=(pipe(5)(7 downto 0) and cover);state4<=s3;
+					when s0 => led_row <= "01111111"; led_g<=(pipe(7)(7 downto 0) and cover);state4<=s1;			--led_row[0]代表第7行每点全给有效信号
+					when s1 => led_row <= "10111111"; led_g<=(pipe(6)(7 downto 0) and cover);state4<=s2;			--为什么要and cover??为了开始时左边水管不显示（即隐藏）
+					when s2 => led_row <= "11011111"; led_g<=(pipe(5)(7 downto 0) and cover);state4<=s3;			--led_g给的是每一行的列信号
 					when s3 => led_row <= "11101111"; led_g<=(pipe(4)(7 downto 0) and cover);state4<=s4;
 					when s4 => led_row <= "11110111"; led_g<=(pipe(3)(7 downto 0) and cover);state4<=s5;
 					when s5 => led_row <= "11111011"; led_g<=(pipe(2)(7 downto 0) and cover);state4<=s6;
 					when s6 => led_row <= "11111101"; led_g<=(pipe(1)(7 downto 0) and cover);state4<=s7;
 					when s7 => led_row <= "11111110"; led_g<=(pipe(0)(7 downto 0) and cover);state4<=s0;
 				end case;
-				if start>=5 then
+				if start>=5 then																					--从游戏开始的第6列开始才有关于死亡的判断和计分。可以把5改成6吗？
 
-                    ledjudge<=pipe(7)(4) & pipe(6)(4) & pipe(5)(4) & pipe(4)(4) & pipe(3)(4) & pipe(2)(4) & pipe(1)(4) & pipe(0)(4);
+                    ledjudge<=pipe(7)(4) & pipe(6)(4) & pipe(5)(4) & pipe(4)(4) & pipe(3)(4) & pipe(2)(4) & pipe(1)(4) & pipe(0)(4);--取出第四列
 				end if;
 				if pwm<15 then
 
@@ -217,7 +218,7 @@ p2:	process(clk_1khz, clk_1hz, btn_1, btn_2, reset)
 					pwm<=0;
 				end if;
 				--judge the states-----------------------------------------
-				if (ledrow or(not ledjudge))/="11111111" then
+				if (ledbirdrow or(not ledjudge))/="11111111" then
 
                     result<=1;
 				end if;
@@ -233,14 +234,14 @@ p2:	process(clk_1khz, clk_1hz, btn_1, btn_2, reset)
             led_g<="00000000";
 			ledjudge<="00000000";
 			case state4 is
-				when s0 => led_row <= "01111111"; led_r<="00000000";state4<=s1;
+				when s0 => led_row <= "01111111"; led_r<="10000001";state4<=s1;							--'X' 形状已改
 				when s1 => led_row <= "10111111"; led_r<="01000010";state4<=s2;
 				when s2 => led_row <= "11011111"; led_r<="00100100";state4<=s3;
 				when s3 => led_row <= "11101111"; led_r<="00011000";state4<=s4;
 				when s4 => led_row <= "11110111"; led_r<="00011000";state4<=s5;
 				when s5 => led_row <= "11111011"; led_r<="00100100";state4<=s6;
 				when s6 => led_row <= "11111101"; led_r<="01000010";state4<=s7;
-				when s7 => led_row <= "11111110"; led_r<="00000000";state4<=s0;
+				when s7 => led_row <= "11111110"; led_r<="10000001";state4<=s0;
 			end case;
 
         elsif(result= 2) then
@@ -248,22 +249,22 @@ p2:	process(clk_1khz, clk_1hz, btn_1, btn_2, reset)
             led_r<="00000000";
 			ledjudge<="00000000";
 			case state4 is
-				when s0 => led_row <= "01111111"; led_g<="00000000";state4<=s1;
+				when s0 => led_row <= "01111111"; led_g<="10000001";state4<=s1;							--‘V" 形状已改
 				when s1 => led_row <= "10111111"; led_g<="01000010";state4<=s2;
 				when s2 => led_row <= "11011111"; led_g<="01000010";state4<=s3;
 				when s3 => led_row <= "11101111"; led_g<="00100100";state4<=s4;
 				when s4 => led_row <= "11110111"; led_g<="00100100";state4<=s5;
 				when s5 => led_row <= "11111011"; led_g<="00011000";state4<=s6;
-				when s6 => led_row <= "11111101"; led_g<="00011000";state4<=s7;
+				when s6 => led_row <= "11111101"; led_g<="00000000";state4<=s7;
 				when s7 => led_row <= "11111110"; led_g<="00000000";state4<=s0;
 			end case;
 		end if;
 		end if;
 		------------------------------------------------------
 		--if (result=0) then
-		if(clk_1hz'event and clk_1hz='0') then
+		if(clk_1hz'event and clk_1hz='0') then														--原来是更换了result语句与clk语句的先后顺序，使报错避免了
 		if start<8 then
-			case start is
+				case start is
 
                 when 0=> cover<="00000001";
 				when 1=> cover<="00000011";
@@ -274,8 +275,8 @@ p2:	process(clk_1khz, clk_1hz, btn_1, btn_2, reset)
 				when 6=> cover<="01111111";
 				when 7=> cover<="11111111";
 				when others => cover <= "11111111";
-end case;
-				start<=start+1;
+				end case;
+				start<=start+1;																		--奇怪start的值是0-11 ？？？
 			else
 				cover<="11111111";
 		end if;
