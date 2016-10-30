@@ -18,9 +18,9 @@ architecture behav of fbird is
 	signal clk_100hz, clk_1hz            : 	std_logic;
 	signal scoreL                        :	integer range 0 to 12;
 	signal steps                         :   integer range 0 to 100;
-	signal cnt2                         :	integer range 0 to 50;
-	signal pwm                          :	integer range 0 to 16;									--pwm是延时
-	signal cnt1, cnt4, start          :	integer range 0 to 10;
+	signal dip2                         :	integer range 0 to 50;									--cnt2
+	signal delay                          :	integer range 0 to 16;									--pwm是延时
+	signal dip1, cnt4, start          :	integer range 0 to 10;										--cnt4似乎没用到？？可以删去？？？
 	signal flag0, flag1, flag2, flag4, result       :	integer range 0 to 10;
 	signal shumaguan0, shumaguan1        : 	std_logic_vector(6 downto 0);
 signal btn1, btn2, btn6, btn7          : 	std_logic;
@@ -45,21 +45,21 @@ p0:	process(clk_1khz)
 
     begin
 		if(clk_1khz'event and clk_1khz='1') then
-			if cnt1=4 then
+			if dip1=4 then
 
-                cnt1<=0;clk_100hz<=not clk_100hz;--100hz
+                dip1<=0;clk_100hz<=not clk_100hz;--100hz
 			else
-				cnt1<=cnt1+1;
+				dip1<=dip1+1;
 			end if;
 		end if;
 	
 		
 		if (clk_100hz'event and clk_100hz='1') then
-			if cnt2=49 then
+			if dip2=49 then
 
-                cnt2<=0;clk_1hz<=not clk_1hz;--1hz
+                dip2<=0;clk_1hz<=not clk_1hz;--1hz
 			else
-				cnt2<=cnt2+1;
+				dip2<=dip2+1;
 			end if;
 		end if;
 		
@@ -187,12 +187,12 @@ p2:	process(clk_1khz, clk_1hz, btn_1, btn_2, reset)										--这里貌似不�
                 led_g<="00000000";	--care for !
 				led_r<="00010000";
 				led_row<=ledbirdrow;														
-				if pwm<1 then															--PWM貌似是用来控制隔一列输出水管的？？flag0的周期是pwm的2倍。
+				if delay<1 then															--PWM貌似是用来控制隔一列输出水管的？？flag0的周期是pwm的2倍。
 
-                    pwm<=pwm+1;
+                    delay <=delay+1;
 				else
-					flag0<=0;															--2<=pwm<=14时，flag0=0?
-					pwm<=0;
+					flag0<=0;															--2<=delay<=14时，flag0=0?
+					delay<=0;
 				end if;
 			else
 				led_r<="00000000";	--care for!
@@ -210,12 +210,12 @@ p2:	process(clk_1khz, clk_1hz, btn_1, btn_2, reset)										--这里貌似不�
 
                     ledjudge<=pipe(7)(4) & pipe(6)(4) & pipe(5)(4) & pipe(4)(4) & pipe(3)(4) & pipe(2)(4) & pipe(1)(4) & pipe(0)(4);--取出第四列
 				end if;
-				if pwm<15 then
+				if delay<15 then
 
-                    pwm<=pwm+1;
+                    delay<=delay+1;
 				else
 					flag0<=1;
-					pwm<=0;
+					delay<=0;
 				end if;
 				--judge the states-----------------------------------------
 				if (ledbirdrow or(not ledjudge))/="11111111" then
