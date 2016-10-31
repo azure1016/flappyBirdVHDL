@@ -3,32 +3,35 @@ use ieee.std_logic_1164.all;
 
 entity fbird is
 port(
-    clk_1khz                        :	in std_logic;
-reset,sw_1						   	:	in std_logic;
+    --clk_1khz                        :	in std_logic;
+    clk_1Mhz                        :	in std_logic;
+reset,sw_1,reset1					   	:	in std_logic;
 	btn_0,btn_1,btn_2,btn_6,btn_7  	:	in std_logic;
 	led_row,led_g,led_r				:	out std_logic_vector(7 downto 0);
 shumaguan           			:	out std_logic_vector(6 downto 0);
-disp							:	out std_logic_vector(7 downto 0)
+disp							:	out std_logic_vector(7 downto 0);
 	
+	RW,EN,RS:out std_logic;
+       Qdata:out std_logic_vector(7 downto 0)
 	);
 end fbird;
 
 architecture behav of fbird is
 
-	signal clk_100hz, clk_1hz            : 	std_logic;
+	signal clk_100hz, clk_1hz,clk_1khz,clknear1k           : 	std_logic;
 	signal scoreL                        :	integer range 0 to 12;
 	signal steps                         :   integer range 0 to 100;
-	signal dip2                         :	integer range 0 to 50;									--cnt2
-	signal delay                          :	integer range 0 to 16;									--pwm是延时
-	signal dip1, cnt4, start          :	integer range 0 to 10;										--cnt4似乎没用到？？可以删去？？？
+	signal dip3,dip2                         :	integer range 0 to 50;									--cnt2
+	signal delay                          :	integer range 0 to 16;									--pwm鏄欢鏃?
+	signal dip1, dip4,dip500hz,cnt4, start          :	integer range 0 to 520;										--cnt4浼间箮娌＄敤鍒帮紵锛熷彲浠ュ垹鍘伙紵锛燂紵
 	signal flag0, flag1, flag2, flag4, result       :	integer range 0 to 10;
 	signal shumaguan0, shumaguan1        : 	std_logic_vector(6 downto 0);
 signal btn1, btn2, btn6, btn7          : 	std_logic;
 	signal ledbirdrow, ledrow1, ledred, ledjudge:	std_logic_vector(7 downto 0);
-signal cover                        :	std_logic_vector(7 downto 0);								--cover的作用是解决游戏刚开始时不显示左边的水管的问题
+signal cover                        :	std_logic_vector(7 downto 0);								--cover鐨勪綔鐢ㄦ槸瑙ｅ喅娓告垙鍒氬紑濮嬫椂涓嶆樉绀哄乏杈圭殑姘寸鐨勯棶棰?
 
 type matrix_index is array(7 downto 0) of std_logic_vector(11 downto 0);
-signal serial                   :	matrix_index;
+signal pipe                   :	matrix_index;
 	type state_type1 is (s0,s1);			
 		signal state1                   : 	state_type1;
 	type state_type2 is(s0,s1,s2,s3,s4,s5,s6,s7);
@@ -39,33 +42,50 @@ signal serial                   :	matrix_index;
 		signal state4                   :	state_type4;
 ---------------------------------------------------------------------------			
 begin
-
+RW<='0';
+     EN<=clknear1k;
 --CLOCK DIVIDE
-p0:	process(clk_1khz)
+--clk_1khz2<=clk_1khz;
+p0:	process(clk_1Mhz)
 
     begin
-		if(clk_1khz'event and clk_1khz='1') then
-			if dip1=4 then
+		if(clk_1Mhz'event and clk_1Mhz='1') then
+			if dip1=499 then
 
-                dip1<=0;clk_100hz<=not clk_100hz;--100hz
+                dip1<=0;clk_1khz<=not clk_1khz;--1khz
 			else
 				dip1<=dip1+1;
 			end if;
+			if dip4=510 then
+
+                dip4<=0;clknear1k<=not clknear1k;--near1khz
+			else
+				dip4<=dip4+1;
+			end if;
 		end if;
+		
+		
 	
 		
-		if (clk_100hz'event and clk_100hz='1') then
-			if dip2=49 then
+		if (clk_1khz'event and clk_1khz='1') then
+			if dip2=4 then
 
-                dip2<=0;clk_1hz<=not clk_1hz;--1hz
+                dip2<=0;clk_100hz<=not clk_100hz;--100hz
 			else
 				dip2<=dip2+1;
+			end if;
+		end if;
+		if(clk_100hz'event and clk_100hz='1') then
+	       if dip3=49 then 
+				dip3<=0;clk_1hz<=not clk_1hz;--1hz
+				else
+				dip3<=dip3+1;
 			end if;
 		end if;
 		
 	end process p0;
 ---------------------------------------------------------------------------
---数码管译码及键盘控制画面变化
+--鏁扮爜绠¤瘧鐮佸強閿洏鎺у埗鐢婚潰鍙樺寲
 p1:	process(clk_100hz, reset)
 
     begin 
@@ -133,8 +153,8 @@ end if;
 				ledbirdrow<=ledbirdrow(6 downto 0) & ledbirdrow(7);
 end if;
 			end if;
-			if(flag1=4 and steps>80  ) then												--删了这段会怎么样？steps>20 VS >80是这两段的区别。
-			  if(sw_1='1') then															--记为段A
+			if(flag1=4 and steps>80  ) then												--鍒犱簡杩欐浼氭€庝箞鏍凤紵steps>20 VS >80鏄繖涓ゆ鐨勫尯鍒€?
+			  if(sw_1='1') then															--璁颁负娈礎
 			  if(ledbirdrow="11111110")then		 --solve the problem of "down-overflow" 
 
                 steps<=0;
@@ -143,7 +163,7 @@ end if;
 				ledbirdrow<=ledbirdrow(0) & ledbirdrow(7 downto 1);								
 end if;
 
-              elsif(sw_1= '0') then														--记为段B。B和A几乎一样
+              elsif(sw_1= '0') then														--璁颁负娈礏銆侭鍜孉鍑犱箮涓€鏍?
 			   if(ledbirdrow="11111110")then
 
                 steps<=0;
@@ -158,19 +178,19 @@ end if;
 	end if;		
 	end process p1;
 ---------------------------------------------------------------------------	
---水管阵列
-p2:	process(clk_1khz, clk_1hz, btn_1, btn_2, reset)										--这里貌似不必有btn,reset?删去reset时记得要调试一下
+--姘寸闃靛垪
+p2:	process(clk_1khz, clk_1hz, btn_1, btn_2, reset)										--杩欓噷璨屼技涓嶅繀鏈塨tn,reset?鍒犲幓reset鏃惰寰楄璋冭瘯涓€涓?
 
     begin
 		if(reset='0') then	--must have a clear flag, using as a initial block
 
             result<=0;
 			start<=0;
-			cover<="00000000";														 	--给0就是暗，给1才是亮
+			cover<="00000000";														 	--缁?灏辨槸鏆楋紝缁?鎵嶆槸浜?
 			led_r<="00000000";
 			led_g<="00000000";
 
-            pipe(7)<="101010101000";  													--修改一下水管阵列看看会不会有死亡判断发生错误或者某行不显示的神奇问题
+            pipe(7)<="101010101000";  													--淇敼涓€涓嬫按绠￠樀鍒楃湅鐪嬩細涓嶄細鏈夋浜″垽鏂彂鐢熼敊璇垨鑰呮煇琛屼笉鏄剧ず鐨勭濂囬棶棰?
 			pipe(6)<="001010101000";
 			pipe(5)<="001000101000";
 			pipe(4)<="001000100010";
@@ -181,34 +201,34 @@ p2:	process(clk_1khz, clk_1hz, btn_1, btn_2, reset)										--这里貌似不�
 		else
 		------------------------------------------------------
 		if(clk_1khz'event and clk_1khz='1') then
-		if(result=0) then																--result=0代表游戏可以继续！
+		if(result=0) then																--result=0浠ｈ〃娓告垙鍙互缁х画锛?
 			if(flag0=1) then
 
                 led_g<="00000000";	--care for !
 				led_r<="00010000";
 				led_row<=ledbirdrow;														
-				if delay<1 then															--PWM貌似是用来控制隔一列输出水管的？？flag0的周期是pwm的2倍。
+				if delay<1 then															--PWM璨屼技鏄敤鏉ユ帶鍒堕殧涓€鍒楄緭鍑烘按绠＄殑锛燂紵flag0鐨勫懆鏈熸槸pwm鐨?鍊嶃€?
 
                     delay <=delay+1;
 				else
-					flag0<=0;															--2<=delay<=14时，flag0=0?
+					flag0<=0;															--2<=delay<=14鏃讹紝flag0=0?
 					delay<=0;
 				end if;
 			else
 				led_r<="00000000";	--care for!
 				case state4 is
-					when s0 => led_row <= "01111111"; led_g<=(pipe(7)(7 downto 0) and cover);state4<=s1;			--led_row[0]代表第7行每点全给有效信号
-					when s1 => led_row <= "10111111"; led_g<=(pipe(6)(7 downto 0) and cover);state4<=s2;			--为什么要and cover??为了开始时左边水管不显示（即隐藏）
-					when s2 => led_row <= "11011111"; led_g<=(pipe(5)(7 downto 0) and cover);state4<=s3;			--led_g给的是每一行的列信号
+					when s0 => led_row <= "01111111"; led_g<=(pipe(7)(7 downto 0) and cover);state4<=s1;			--led_row[0]浠ｈ〃绗?琛屾瘡鐐瑰叏缁欐湁鏁堜俊鍙?
+					when s1 => led_row <= "10111111"; led_g<=(pipe(6)(7 downto 0) and cover);state4<=s2;			--涓轰粈涔堣and cover??涓轰簡寮€濮嬫椂宸﹁竟姘寸涓嶆樉绀猴紙鍗抽殣钘忥級
+					when s2 => led_row <= "11011111"; led_g<=(pipe(5)(7 downto 0) and cover);state4<=s3;			--led_g缁欑殑鏄瘡涓€琛岀殑鍒椾俊鍙?
 					when s3 => led_row <= "11101111"; led_g<=(pipe(4)(7 downto 0) and cover);state4<=s4;
 					when s4 => led_row <= "11110111"; led_g<=(pipe(3)(7 downto 0) and cover);state4<=s5;
 					when s5 => led_row <= "11111011"; led_g<=(pipe(2)(7 downto 0) and cover);state4<=s6;
 					when s6 => led_row <= "11111101"; led_g<=(pipe(1)(7 downto 0) and cover);state4<=s7;
 					when s7 => led_row <= "11111110"; led_g<=(pipe(0)(7 downto 0) and cover);state4<=s0;
 				end case;
-				if start>=5 then																					--从游戏开始的第6列开始才有关于死亡的判断和计分。可以把5改成6吗？
+				if start>=5 then																					--浠庢父鎴忓紑濮嬬殑绗?鍒楀紑濮嬫墠鏈夊叧浜庢浜＄殑鍒ゆ柇鍜岃鍒嗐€傚彲浠ユ妸5鏀规垚6鍚楋紵
 
-                    ledjudge<=pipe(7)(4) & pipe(6)(4) & pipe(5)(4) & pipe(4)(4) & pipe(3)(4) & pipe(2)(4) & pipe(1)(4) & pipe(0)(4);--取出第四列
+                    ledjudge<=pipe(7)(4) & pipe(6)(4) & pipe(5)(4) & pipe(4)(4) & pipe(3)(4) & pipe(2)(4) & pipe(1)(4) & pipe(0)(4);--鍙栧嚭绗洓鍒?
 				end if;
 				if delay<15 then
 
@@ -234,7 +254,7 @@ p2:	process(clk_1khz, clk_1hz, btn_1, btn_2, reset)										--这里貌似不�
             led_g<="00000000";
 			ledjudge<="00000000";
 			case state4 is
-				when s0 => led_row <= "01111111"; led_r<="10000001";state4<=s1;							--'X' 形状已改
+				when s0 => led_row <= "01111111"; led_r<="10000001";state4<=s1;							--'X' 褰㈢姸宸叉敼
 				when s1 => led_row <= "10111111"; led_r<="01000010";state4<=s2;
 				when s2 => led_row <= "11011111"; led_r<="00100100";state4<=s3;
 				when s3 => led_row <= "11101111"; led_r<="00011000";state4<=s4;
@@ -249,7 +269,7 @@ p2:	process(clk_1khz, clk_1hz, btn_1, btn_2, reset)										--这里貌似不�
             led_r<="00000000";
 			ledjudge<="00000000";
 			case state4 is
-				when s0 => led_row <= "01111111"; led_g<="10000001";state4<=s1;							--‘V" 形状已改
+				when s0 => led_row <= "01111111"; led_g<="10000001";state4<=s1;							--鈥榁" 褰㈢姸宸叉敼
 				when s1 => led_row <= "10111111"; led_g<="01000010";state4<=s2;
 				when s2 => led_row <= "11011111"; led_g<="01000010";state4<=s3;
 				when s3 => led_row <= "11101111"; led_g<="00100100";state4<=s4;
@@ -262,7 +282,7 @@ p2:	process(clk_1khz, clk_1hz, btn_1, btn_2, reset)										--这里貌似不�
 		end if;
 		------------------------------------------------------
 		--if (result=0) then
-		if(clk_1hz'event and clk_1hz='0') then														--原来是更换了result语句与clk语句的先后顺序，使报错避免了
+		if(clk_1hz'event and clk_1hz='0') then														--鍘熸潵鏄洿鎹簡result璇彞涓巆lk璇彞鐨勫厛鍚庨『搴忥紝浣挎姤閿欓伩鍏嶄簡
 		if start<8 then
 				case start is
 
@@ -276,7 +296,7 @@ p2:	process(clk_1khz, clk_1hz, btn_1, btn_2, reset)										--这里貌似不�
 				when 7=> cover<="11111111";
 				when others => cover <= "11111111";
 				end case;
-				start<=start+1;																		--奇怪start的值是0-11 ？？？
+				start<=start+1;																		--濂囨€猻tart鐨勫€兼槸0-11 锛燂紵锛?
 			else
 				cover<="11111111";
 		end if;
@@ -320,6 +340,66 @@ p3:	process(clk_1hz, ledjudge)
 		end if;
 		end if;
 	end process p3;
+	
+------------------------------------
+p4:process(clknear1k)
+        variable cnt:integer range 0 to 37;
+        
+        begin
+       --RW<='0';
+     --EN<=clk_1khz2;
+          if reset1='1' then 
+             cnt:=0;
+             Qdata<="00000001";
+          elsif clknear1k'event and clknear1k='1' then
+          cnt:=cnt+1;
+          end if;
+          case cnt is
+         -------Init LCD1602-----------
+          when 0 =>RS<='0';Qdata<="00111000";--EN<='1';EN<='0'; --0x38,
+          when 1 =>RS<='0';Qdata<="00001100";--EN<='1';EN<='0';   --0x0C
+          when 2 =>RS<='0';Qdata<="00000110";--EN<='1';EN<='0';   --0x06
+          when 3 =>RS<='0';Qdata<="00000001";--EN<='1';EN<='0';   --0x01
+          ----------------------------------
+          when 4 =>RS<='0';Qdata<="10000000";--EN<='1';EN<='0';   --display,0x00+0x80,1h1w
+          -------data display-------------
+
+      when 5=>RS<='1';Qdata<="10100000";--EN<='1';EN<='0'; ---????    
+      when 6=>RS<='1';Qdata<="10100000";--EN<='1';EN<='0'; ---????    
+      when 7=>RS<='1';Qdata<="10100000";--EN<='1';EN<='0'; ---???? 
+      when 8=>RS<='1';Qdata<="10100000";--EN<='1';EN<='0'; ---????     
+      when 9=>RS<='1';Qdata<="10100000";--EN<='1';EN<='0'; ---????     
+      when 10=>RS<='1';Qdata<="01000011";--EN<='1';EN<='0';     ---????   
+      when 11=>RS<='1';Qdata<="01101000";--EN<='1';EN<='0'; ---????     
+      when 12=>RS<='1';Qdata<="01100001";--EN<='1';EN<='0'; ---????    
+      when 13=>RS<='1';Qdata<="01110010";--EN<='1';EN<='0';      ---???? 
+      when 14=>RS<='1';Qdata<="01100111";--EN<='1';EN<='0'; ---????      
+      when 15=>RS<='1';Qdata<="01100101";--EN<='1';EN<='0'; ---????    
+      when 16=>RS<='1';Qdata<="00110000";--EN<='1';EN<='0';    --hun
+      when 17=>RS<='1';Qdata<="00110000";--EN<='1';EN<='0';    --ten  
+      when 18=>RS<='1';Qdata<="00110000";--EN<='1';EN<='0';    --one
+      when 19=>RS<='1';Qdata<="01011100";--EN<='1';EN<='0'; --$  
+      when 20=>RS<='1';Qdata<="10100000";--EN<='1';EN<='0'; -- ????             ---------------------------
+        when 21=>RS<='0';Qdata<="11000000";--éè?¨??ê?μ??????ú10H+80H￡?
+       ----------------------------
+     when 22=>RS<='1';Qdata<="10100000";--- ????   
+     when 23=>RS<='1';Qdata<="10100000";--- ????    
+     when 24=>RS<='1';Qdata<="01010111" ;--W
+     when 25=>RS<='1';Qdata<="01011010";--- Z  
+     when 26=>RS<='1';Qdata<="01101000";--- h    
+     when 27=>RS<='1';Qdata<="01100001";--- a 
+     when 28=>RS<='1';Qdata<="01101111";--- 0  
+     when 29=>RS<='1';Qdata<="01000011";--- c 
+     when 30=>RS<='1';Qdata<="01101000";--- h   
+     when 31=>RS<='1';Qdata<="01100101";--- e 
+     when 32=>RS<='1';Qdata<="01101110";--- n    
+     when 33=>RS<='1';Qdata<="10100000";--- ????  
+     when 34=>RS<='1';Qdata<="10100000";--- ???? 
+     when 35=>RS<='1';Qdata<="10100000";--- ????  
+     when 36=>RS<='1';Qdata<="10100000";--- ????  
+     when 37=>RS<='1';Qdata<="10100000";--- ????       
+     end case;
+      end process p4;
 ---------------------------------------------------------------------------
 end;
 ---------------------------------------------------------------------------
