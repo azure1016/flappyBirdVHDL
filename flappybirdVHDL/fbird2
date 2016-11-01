@@ -1,5 +1,6 @@
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.std_logic_unsigned.all;
 
 entity fbird is
 port(
@@ -11,8 +12,8 @@ reset,sw_1,reset1					   	:	in std_logic;
 shumaguan           			:	out std_logic_vector(6 downto 0);
 disp							:	out std_logic_vector(7 downto 0);
 	
-	RW,EN,RS:out std_logic;
-       Qdata:out std_logic_vector(7 downto 0)
+	RW,EN:out std_logic;
+		LCD_Data:out std_logic_vector(8 downto 0)
 	);
 end fbird;
 
@@ -20,6 +21,7 @@ architecture behav of fbird is
 
 	signal clk_100hz, clk_1hz,clk_1khz,clknear1k           : 	std_logic;
 	signal scoreL                        :	integer range 0 to 12;
+	signal scoreR                        :	integer range 0 to 12;
 	signal steps                         :   integer range 0 to 100;
 	signal dip3,dip2                         :	integer range 0 to 50;									--cnt2
 	signal delay                          :	integer range 0 to 16;									--pwm鏄欢鏃?
@@ -43,7 +45,7 @@ signal pipe                   :	matrix_index;
 ---------------------------------------------------------------------------			
 begin
 RW<='0';
-     EN<=clknear1k;
+     EN<=clk_1khz;
 --CLOCK DIVIDE
 --clk_1khz2<=clk_1khz;
 p0:	process(clk_1Mhz)
@@ -86,16 +88,180 @@ p0:	process(clk_1Mhz)
 	end process p0;
 ---------------------------------------------------------------------------
 --鏁扮爜绠¤瘧鐮佸強閿洏鎺у埗鐢婚潰鍙樺寲
-p1:	process(clk_100hz, reset)
-
+p1:	process(clk_100hz,clk_1khz)
+variable lcnt: std_logic_vector(5 downto 0):="000000";
+variable cnt:integer range 0 to 37;
     begin 
-	if(reset='0') then
+			if clk_100hz'event and clk_100hz='1' then--------------这里需要一个100hz!!!	
+				if (btn_1='1' and btn_2 = '0') then
+
+					flag1<=1;
+					steps<=steps+1;
+
+				elsif(btn_2= '1' and btn_1 = '0') then
+
+					flag1<=2;
+					steps<=steps+1;
+
+				elsif(btn_2= '0' and btn_1 = '0') then
+
+					flag1<=4;
+					steps<=steps+1;
+				else
+					flag1<=0;
+					steps<=0;
+				end if;
+				if(flag1=1 and steps>20 ) then --防抖
+					if(ledbirdrow="11111110")then
+
+						steps<=0;
+					else
+						steps<=0;
+						ledbirdrow<=ledbirdrow(0) &ledbirdrow(7 downto 1);
+					end if;
+				end if;
+				if(flag1=2 and steps>20 ) then
+					if(ledbirdrow="01111111")then   --solve the problem of "up-overflow" 
+
+						steps<=0;
+					else
+						steps<=0;
+						ledbirdrow<=ledbirdrow(6 downto 0) & ledbirdrow(7);
+					end if;
+				end if;
+				if(flag1=4 and steps>80  ) then												--鍒犱簡杩欐浼氭€庝箞鏍凤紵steps>20 VS >80鏄繖涓ゆ鐨勫尯鍒€?
+					if(sw_1='1') then															--璁颁负娈礎
+						if(ledbirdrow="11111110")then		 --solve the problem of "down-overflow" 
+
+							steps<=0;
+						else
+							steps<=0;                                    
+							ledbirdrow<=ledbirdrow(0) & ledbirdrow(7 downto 1);								
+						end if;
+
+					elsif(sw_1= '0') then														--璁颁负娈礏銆侭鍜孉鍑犱箮涓€鏍?
+						if(ledbirdrow="11111110")then
+
+							steps<=0;
+						else
+							steps<=0;
+							ledbirdrow<=ledbirdrow(0) & ledbirdrow(7 downto 1);
+						end if;
+					end if;
+			 	end if;
+			end if;
+			
+	if(reset='0') then--*************************
 
         disp<="11111111";
 		ledbirdrow<="11101111";
-	else
-		if( clk_100hz'event and clk_100hz='1') then
-			case scoreL is
+		--------------------
+		if reset1='0' then--reset=0,reset1=0*********************
+			-----------
+            --welcome
+            if clk_1khz'event and clk_1khz='1' then--*******
+					if cnt>37 then cnt:=0;--*****
+						else
+						cnt:=cnt+1;
+					end if;  --end row104
+			end if;--end row103
+          case cnt is
+				-------Init LCD1602-----------
+			when 0 =>LCD_Data<="000111000";--EN<='1';EN<='0'; --0x38,
+			when 1 =>LCD_Data<="000001100";--EN<='1';EN<='0';   --0x0C
+			when 2 =>LCD_Data<="000000110";--EN<='1';EN<='0';   --0x06
+			when 3 =>LCD_Data<="000000001";--EN<='1';EN<='0';   --0x01
+				----------------------------------
+			when 4 =>LCD_Data<="010000000";--EN<='1';EN<='0';   --display,0x00+0x80,1h1w
+				-------data display-------------
+
+			when 5=>LCD_Data<="110100000";--EN<='1';EN<='0'; ---????    
+			when 6=>LCD_Data<="110100000";--EN<='1';EN<='0'; ---????    
+			when 7=>LCD_Data<="110100000";--EN<='1';EN<='0'; ---???? 
+			when 8=>LCD_Data<="110100000";--EN<='1';EN<='0'; ---????     
+			when 9=>LCD_Data<="110100000";--EN<='1';EN<='0'; ---????     
+			when 10=>LCD_Data<="101000110";--EN<='1';EN<='0';     ---f   
+			when 11=>LCD_Data<="101101100";--EN<='1';EN<='0'; ---l     
+			when 12=>LCD_Data<="101100001";--EN<='1';EN<='0'; ---a   
+			when 13=>LCD_Data<="101110000";--EN<='1';EN<='0'; ---p 
+			when 14=>LCD_Data<="101110000";--EN<='1';EN<='0'; ---p     
+			when 15=>LCD_Data<="101111001";--EN<='1';EN<='0'; ---y    
+			when 16=>LCD_Data<="110100000";--EN<='1';EN<='0';    
+			when 17=>LCD_Data<="101010111";--EN<='1';EN<='0';    --w 
+			when 18=>LCD_Data<="101100001";--EN<='1';EN<='0';    --a
+			when 19=>LCD_Data<="101101110";--EN<='1';EN<='0'; 	--n  
+			when 20=>LCD_Data<="101100111";--EN<='1';EN<='0'; -- g            ---------------------------
+			when 21=>LCD_Data<="011000000";--2h1l
+			----------------------------
+			when 22=>LCD_Data<="110100000";--- ????   
+			when 23=>LCD_Data<="110100000";--- ????    
+			when 24=>LCD_Data<="101010111" ;--W
+			when 25=>LCD_Data<="101100101";---e 
+			when 26=>LCD_Data<="101101100";--- l    
+			when 27=>LCD_Data<="101100011";--- c 
+			when 28=>LCD_Data<="101101111";--- 0  
+			when 29=>LCD_Data<="101101101";--- m 
+			when 30=>LCD_Data<="101100101";--- e   
+			when 31=>LCD_Data<="110100000";--- ???? 
+			when 32=>LCD_Data<="110100000";--- ????    
+			when 33=>LCD_Data<="110100000";--- ????  
+			when 34=>LCD_Data<="110100000";--- ???? 
+			when 35=>LCD_Data<="110100000";--- ????  
+			when 36=>LCD_Data<="110100000";--- ????  
+			when 37=>LCD_Data<="110100000";--- ????       
+			end case;
+			-----------
+		else --reset=0,reset1=1
+		     cnt:=0;
+             LCD_Data<="000000001";
+		end if;--end row100
+		--------------------
+	else----reset=1
+		
+		if reset1='0' then--reset=1,reset1=0,count score--********************
+			if( clk_1khz'event and clk_1khz='1') then--********
+				if lcnt<"001100" then 
+					lcnt:=lcnt+1;   --****************     
+				elsif scoreR>='0' and scoreR<="12" then------------------------------------这样比大小对吗？
+						lcnt:=lcnt+1;
+				else
+						cnt:="000000";
+				end if;--end 164
+			end if;--end 163
+			case lcnt is
+				when "000000"=>LCD_Data<="000111000";--/*设置8位格式,2行,5*7*/  ,顺序2,3的要求
+				when "000001"=>LCD_Data<="000001100";   --/*整体显示,关光标,光标闪烁/  ，顺序4的要求
+				when "000010"=>LCD_Data<="000000001";--清屏，顺序5的要求
+				when "000011"=>LCD_Data<="000000110";  --/*显示移动格式，看最后两位，10表示光标右移，顺序6的要求
+				when "000100"=>LCD_Data<="010000000";--设定显示的位置在00H+80H，即显示屏第一行第一个位置，顺序7的要求
+				when "000101"=>LCD_Data<="101010011"; --顺序8的要求，上一步指定位置处显示字符S
+				when "000110"=>LCD_Data<="101100011";--上一步基础上地址加一，显示字符c
+				when "000111"=>LCD_Data<="101101111";--o
+				when "001000"=>LCD_Data<="101110010";--r
+				when "001001"=>LCD_Data<="101100101";--e
+				when "001010"=>LCD_Data<="100111010";--:
+				when "001011"=>LCD_Data<="110100000";--
+				when "001100"=>LCD_Data<="011000000";--2r1c
+			
+				when "001101"=> LCD_Data<="011000000";LCD_Data<="100110000";LCD_Data<="100110000";---00
+				when "001110"=> LCD_Data<="011000000";LCD_Data<="100110000";LCD_Data<="100110001";---01
+				when "001111"=> LCD_Data<="011000000";LCD_Data<="100110000";LCD_Data<="100110010";
+				when "010000"=> LCD_Data<="011000000";LCD_Data<="100110000";LCD_Data<="100110011";
+				when "010001"=> LCD_Data<="011000000";LCD_Data<="100110000";LCD_Data<="100110100";
+				when "010010"=> LCD_Data<="011000000";LCD_Data<="100110000";LCD_Data<="100110101";
+				when "010011"=> LCD_Data<="011000000";LCD_Data<="100110000";LCD_Data<="100110110";
+				when "010100"=> LCD_Data<="011000000";LCD_Data<="100110000";LCD_Data<="100110111";
+				when "010101"=> LCD_Data<="011000000";LCD_Data<="100110000";LCD_Data<="100111000";
+				when "010110"=> LCD_Data<="011000000";LCD_Data<="100110000";LCD_Data<="100111001";---09
+				when "010111"=>LCD_Data<="011000000";LCD_Data<="100110001";LCD_Data<="100110000";---10
+				when "011000"=>LCD_Data<="011000000";LCD_Data<="100110001";LCD_Data<="100110001";---11
+				when "011001"=>LCD_Data<="011000000";LCD_Data<="100110001";LCD_Data<="100110010";---12
+				when others =>LCD_Data<="011000000";--2r1c--可以有胜利界面！
+			end case;
+		else--reset=1,reset1=1
+			--add clokc100hz
+			if( clk_100hz'event and clk_100hz='1') then
+				case scoreL is
 				when 0=> shumaguan1<="1111110";shumaguan0<="1111110";
 				when 1=> shumaguan1<="1111110";shumaguan0<="0110000";
 				when 2=> shumaguan1<="1111110";shumaguan0<="1101101";
@@ -110,69 +276,15 @@ p1:	process(clk_100hz, reset)
 				when 11=>shumaguan1<="0110000";shumaguan0<="0110000";
 				when 12=>shumaguan1<="0110000";shumaguan0<="1101101";
 				when others => shumaguan1 <= "0000000"; shumaguan0<="0000000";
-			end case;
-			
-			case state1 is
+				end case;
+			   --end if;--end 162
+			   --end if;--end row95--here end 95?instead row end 280?
+				case state1 is
 				when s0 => shumaguan <= shumaguan0; disp<="11111110";state1<=s1;
 				when s1 => shumaguan <= shumaguan1; disp<="11111101";state1<=s0;
-			end case;
+				end case;
 			
-			if (btn_1='1' and btn_2 = '0') then
-
-                flag1<=1;
-				steps<=steps+1;
-
-            elsif(btn_2= '1' and btn_1 = '0') then
-
-                flag1<=2;
-				steps<=steps+1;
-
-            elsif(btn_2= '0' and btn_1 = '0') then
-
-                flag1<=4;
-				steps<=steps+1;
-			else
-				flag1<=0;
-				steps<=0;
-			end if;
-			if(flag1=1 and steps>20 ) then --priventing the tremble of pressing a button
-			   if(ledbirdrow="11111110")then
-
-                steps<=0;
-			  else
-				steps<=0;
-				ledbirdrow<=ledbirdrow(0) &ledbirdrow(7 downto 1);
-end if;
-			end if;
-			if(flag1=2 and steps>20 ) then
-			   if(ledbirdrow="01111111")then   --solve the problem of "up-overflow" 
-
-               steps<=0;
-			   else
-				steps<=0;
-				ledbirdrow<=ledbirdrow(6 downto 0) & ledbirdrow(7);
-end if;
-			end if;
-			if(flag1=4 and steps>80  ) then												--鍒犱簡杩欐浼氭€庝箞鏍凤紵steps>20 VS >80鏄繖涓ゆ鐨勫尯鍒€?
-			  if(sw_1='1') then															--璁颁负娈礎
-			  if(ledbirdrow="11111110")then		 --solve the problem of "down-overflow" 
-
-                steps<=0;
-			  else
-				steps<=0;
-				ledbirdrow<=ledbirdrow(0) & ledbirdrow(7 downto 1);								
-end if;
-
-              elsif(sw_1= '0') then														--璁颁负娈礏銆侭鍜孉鍑犱箮涓€鏍?
-			   if(ledbirdrow="11111110")then
-
-                steps<=0;
-			  else
-				steps<=0;
-				ledbirdrow<=ledbirdrow(0) & ledbirdrow(7 downto 1);
-end if;
-				end if;
-			 	
+				
 			end if;
 		end if;
 	end if;		
@@ -182,6 +294,10 @@ end if;
 p2:	process(clk_1khz, clk_1hz, btn_1, btn_2, reset)										--杩欓噷璨屼技涓嶅繀鏈塨tn,reset?鍒犲幓reset鏃惰寰楄璋冭瘯涓€涓?
 
     begin
+				
+				
+				
+				
 		if(reset='0') then	--must have a clear flag, using as a initial block
 
             result<=0;
@@ -200,123 +316,123 @@ p2:	process(clk_1khz, clk_1hz, btn_1, btn_2, reset)										--杩欓噷璨屼�
 			pipe(0)<="101010001010";
 		else
 		------------------------------------------------------
-		if(clk_1khz'event and clk_1khz='1') then
-		if(result=0) then																--result=0浠ｈ〃娓告垙鍙互缁х画锛?
-			if(flag0=1) then
+			if(clk_1khz'event and clk_1khz='1') then
+				if(result=0) then																--result=0浠ｈ〃娓告垙鍙互缁х画锛?
+					if(flag0=1) then
 
-                led_g<="00000000";	--care for !
-				led_r<="00010000";
-				led_row<=ledbirdrow;														
-				if delay<1 then															--PWM璨屼技鏄敤鏉ユ帶鍒堕殧涓€鍒楄緭鍑烘按绠＄殑锛燂紵flag0鐨勫懆鏈熸槸pwm鐨?鍊嶃€?
+						led_g<="00000000";	--care for !
+						led_r<="00010000";
+						led_row<=ledbirdrow;														
+						if delay<1 then															--PWM璨屼技鏄敤鏉ユ帶鍒堕殧涓€鍒楄緭鍑烘按绠＄殑锛燂紵flag0鐨勫懆鏈熸槸pwm鐨?鍊嶃€?
 
-                    delay <=delay+1;
+							delay <=delay+1;
+						else
+							flag0<=0;															--2<=delay<=14鏃讹紝flag0=0?
+							delay<=0;
+						end if;
+					else
+						led_r<="00000000";	--care for!
+						case state4 is
+						when s0 => led_row <= "01111111"; led_g<=(pipe(7)(7 downto 0) and cover);state4<=s1;			--led_row[0]浠ｈ〃绗?琛屾瘡鐐瑰叏缁欐湁鏁堜俊鍙?
+						when s1 => led_row <= "10111111"; led_g<=(pipe(6)(7 downto 0) and cover);state4<=s2;			--涓轰粈涔堣and cover??涓轰簡寮€濮嬫椂宸﹁竟姘寸涓嶆樉绀猴紙鍗抽殣钘忥級
+						when s2 => led_row <= "11011111"; led_g<=(pipe(5)(7 downto 0) and cover);state4<=s3;			--led_g缁欑殑鏄瘡涓€琛岀殑鍒椾俊鍙?
+						when s3 => led_row <= "11101111"; led_g<=(pipe(4)(7 downto 0) and cover);state4<=s4;
+						when s4 => led_row <= "11110111"; led_g<=(pipe(3)(7 downto 0) and cover);state4<=s5;
+						when s5 => led_row <= "11111011"; led_g<=(pipe(2)(7 downto 0) and cover);state4<=s6;
+						when s6 => led_row <= "11111101"; led_g<=(pipe(1)(7 downto 0) and cover);state4<=s7;
+						when s7 => led_row <= "11111110"; led_g<=(pipe(0)(7 downto 0) and cover);state4<=s0;
+						end case;
+							if start>=5 then																					--浠庢父鎴忓紑濮嬬殑绗?鍒楀紑濮嬫墠鏈夊叧浜庢浜＄殑鍒ゆ柇鍜岃鍒嗐€傚彲浠ユ妸5鏀规垚6鍚楋紵
+
+								ledjudge<=pipe(7)(4) & pipe(6)(4) & pipe(5)(4) & pipe(4)(4) & pipe(3)(4) & pipe(2)(4) & pipe(1)(4) & pipe(0)(4);--鍙栧嚭绗洓鍒?
+							end if;
+							if delay<15 then
+
+								delay<=delay+1;
+							else
+								flag0<=1;
+								delay<=0;
+							end if;
+							--judge the states-----------------------------------------
+							if (ledbirdrow or(not ledjudge))/="11111111" then
+
+								result<=1;
+							end if;
+							if(scoreL=12) then
+
+								result<=2;
+							end if;
+							-----------------------------------------------------------
+					end if;		
+
+				elsif(result= 1) then
+
+					led_g<="00000000";
+					ledjudge<="00000000";
+					case state4 is
+						when s0 => led_row <= "01111111"; led_r<="10000001";state4<=s1;							--'X' 褰㈢姸宸叉敼
+						when s1 => led_row <= "10111111"; led_r<="01000010";state4<=s2;
+						when s2 => led_row <= "11011111"; led_r<="00100100";state4<=s3;
+						when s3 => led_row <= "11101111"; led_r<="00011000";state4<=s4;
+						when s4 => led_row <= "11110111"; led_r<="00011000";state4<=s5;
+						when s5 => led_row <= "11111011"; led_r<="00100100";state4<=s6;
+						when s6 => led_row <= "11111101"; led_r<="01000010";state4<=s7;
+						when s7 => led_row <= "11111110"; led_r<="10000001";state4<=s0;
+					end case;
+
+				elsif(result= 2) then
+
+					led_r<="00000000";
+					ledjudge<="00000000";
+					case state4 is
+					when s0 => led_row <= "01111111"; led_g<="10000001";state4<=s1;							--鈥榁" 褰㈢姸宸叉敼
+					when s1 => led_row <= "10111111"; led_g<="01000010";state4<=s2;
+					when s2 => led_row <= "11011111"; led_g<="01000010";state4<=s3;
+					when s3 => led_row <= "11101111"; led_g<="00100100";state4<=s4;
+					when s4 => led_row <= "11110111"; led_g<="00100100";state4<=s5;
+					when s5 => led_row <= "11111011"; led_g<="00011000";state4<=s6;
+					when s6 => led_row <= "11111101"; led_g<="00000000";state4<=s7;
+					when s7 => led_row <= "11111110"; led_g<="00000000";state4<=s0;
+					end case;
+				end if;
+			end if;
+				------------------------------------------------------
+				--if (result=0) then
+			if(clk_1hz'event and clk_1hz='0') then														--鍘熸潵鏄洿鎹簡result璇彞涓巆lk璇彞鐨勫厛鍚庨『搴忥紝浣挎姤閿欓伩鍏嶄簡
+				if start<8 then
+					case start is
+
+					when 0=> cover<="00000001";
+					when 1=> cover<="00000011";
+					when 2=> cover<="00000111";
+					when 3=> cover<="00001111";
+					when 4=> cover<="00011111";
+					when 5=> cover<="00111111";
+					when 6=> cover<="01111111";
+					when 7=> cover<="11111111";
+					when others => cover <= "11111111";
+					end case;
+					start<=start+1;																		--濂囨€猻tart鐨勫€兼槸0-11 锛燂紵锛?
 				else
-					flag0<=0;															--2<=delay<=14鏃讹紝flag0=0?
-					delay<=0;
+					cover<="11111111";
 				end if;
-			else
-				led_r<="00000000";	--care for!
-				case state4 is
-					when s0 => led_row <= "01111111"; led_g<=(pipe(7)(7 downto 0) and cover);state4<=s1;			--led_row[0]浠ｈ〃绗?琛屾瘡鐐瑰叏缁欐湁鏁堜俊鍙?
-					when s1 => led_row <= "10111111"; led_g<=(pipe(6)(7 downto 0) and cover);state4<=s2;			--涓轰粈涔堣and cover??涓轰簡寮€濮嬫椂宸﹁竟姘寸涓嶆樉绀猴紙鍗抽殣钘忥級
-					when s2 => led_row <= "11011111"; led_g<=(pipe(5)(7 downto 0) and cover);state4<=s3;			--led_g缁欑殑鏄瘡涓€琛岀殑鍒椾俊鍙?
-					when s3 => led_row <= "11101111"; led_g<=(pipe(4)(7 downto 0) and cover);state4<=s4;
-					when s4 => led_row <= "11110111"; led_g<=(pipe(3)(7 downto 0) and cover);state4<=s5;
-					when s5 => led_row <= "11111011"; led_g<=(pipe(2)(7 downto 0) and cover);state4<=s6;
-					when s6 => led_row <= "11111101"; led_g<=(pipe(1)(7 downto 0) and cover);state4<=s7;
-					when s7 => led_row <= "11111110"; led_g<=(pipe(0)(7 downto 0) and cover);state4<=s0;
-				end case;
-				if start>=5 then																					--浠庢父鎴忓紑濮嬬殑绗?鍒楀紑濮嬫墠鏈夊叧浜庢浜＄殑鍒ゆ柇鍜岃鍒嗐€傚彲浠ユ妸5鏀规垚6鍚楋紵
 
-                    ledjudge<=pipe(7)(4) & pipe(6)(4) & pipe(5)(4) & pipe(4)(4) & pipe(3)(4) & pipe(2)(4) & pipe(1)(4) & pipe(0)(4);--鍙栧嚭绗洓鍒?
-				end if;
-				if delay<15 then
+				pipe(7)<=pipe(7)(10 downto 0) & pipe(7)(11);
+	
+				pipe(6)<=pipe(6)(10 downto 0) & pipe(6)(11);
 
-                    delay<=delay+1;
-				else
-					flag0<=1;
-					delay<=0;
-				end if;
-				--judge the states-----------------------------------------
-				if (ledbirdrow or(not ledjudge))/="11111111" then
+				pipe(5)<=pipe(5)(10 downto 0) & pipe(5)(11);
 
-                    result<=1;
-				end if;
-				if(scoreL=12) then
+				pipe(4)<=pipe(4)(10 downto 0) & pipe(4)(11);
 
-                    result<=2;
-				end if;
-				-----------------------------------------------------------
-			end if;		
+				pipe(3)<=pipe(3)(10 downto 0) & pipe(3)(11);
 
-        elsif(result= 1) then
+				pipe(2)<=pipe(2)(10 downto 0) & pipe(2)(11);
 
-            led_g<="00000000";
-			ledjudge<="00000000";
-			case state4 is
-				when s0 => led_row <= "01111111"; led_r<="10000001";state4<=s1;							--'X' 褰㈢姸宸叉敼
-				when s1 => led_row <= "10111111"; led_r<="01000010";state4<=s2;
-				when s2 => led_row <= "11011111"; led_r<="00100100";state4<=s3;
-				when s3 => led_row <= "11101111"; led_r<="00011000";state4<=s4;
-				when s4 => led_row <= "11110111"; led_r<="00011000";state4<=s5;
-				when s5 => led_row <= "11111011"; led_r<="00100100";state4<=s6;
-				when s6 => led_row <= "11111101"; led_r<="01000010";state4<=s7;
-				when s7 => led_row <= "11111110"; led_r<="10000001";state4<=s0;
-			end case;
+				pipe(1)<=pipe(1)(10 downto 0) & pipe(1)(11);
 
-        elsif(result= 2) then
-
-            led_r<="00000000";
-			ledjudge<="00000000";
-			case state4 is
-				when s0 => led_row <= "01111111"; led_g<="10000001";state4<=s1;							--鈥榁" 褰㈢姸宸叉敼
-				when s1 => led_row <= "10111111"; led_g<="01000010";state4<=s2;
-				when s2 => led_row <= "11011111"; led_g<="01000010";state4<=s3;
-				when s3 => led_row <= "11101111"; led_g<="00100100";state4<=s4;
-				when s4 => led_row <= "11110111"; led_g<="00100100";state4<=s5;
-				when s5 => led_row <= "11111011"; led_g<="00011000";state4<=s6;
-				when s6 => led_row <= "11111101"; led_g<="00000000";state4<=s7;
-				when s7 => led_row <= "11111110"; led_g<="00000000";state4<=s0;
-			end case;
-		end if;
-		end if;
-		------------------------------------------------------
-		--if (result=0) then
-		if(clk_1hz'event and clk_1hz='0') then														--鍘熸潵鏄洿鎹簡result璇彞涓巆lk璇彞鐨勫厛鍚庨『搴忥紝浣挎姤閿欓伩鍏嶄簡
-		if start<8 then
-				case start is
-
-                when 0=> cover<="00000001";
-				when 1=> cover<="00000011";
-				when 2=> cover<="00000111";
-				when 3=> cover<="00001111";
-				when 4=> cover<="00011111";
-				when 5=> cover<="00111111";
-				when 6=> cover<="01111111";
-				when 7=> cover<="11111111";
-				when others => cover <= "11111111";
-				end case;
-				start<=start+1;																		--濂囨€猻tart鐨勫€兼槸0-11 锛燂紵锛?
-			else
-				cover<="11111111";
-		end if;
-
-            pipe(7)<=pipe(7)(10 downto 0) & pipe(7)(11);
-
-            pipe(6)<=pipe(6)(10 downto 0) & pipe(6)(11);
-
-            pipe(5)<=pipe(5)(10 downto 0) & pipe(5)(11);
-
-            pipe(4)<=pipe(4)(10 downto 0) & pipe(4)(11);
-
-            pipe(3)<=pipe(3)(10 downto 0) & pipe(3)(11);
-
-            pipe(2)<=pipe(2)(10 downto 0) & pipe(2)(11);
-
-            pipe(1)<=pipe(1)(10 downto 0) & pipe(1)(11);
-
-            pipe(0)<=pipe(0)(10 downto 0) & pipe(0)(11);
-		end if;
+				pipe(0)<=pipe(0)(10 downto 0) & pipe(0)(11);
+			end if;
 		------------------------------------------------------
 		end if;
 	end process p2;
@@ -332,9 +448,11 @@ p3:	process(clk_1hz, ledjudge)
 			if((not ledjudge)/="11111111") then
 
                 scoreL<=scoreL+1;
+                scoreR<=scoreL;
 				if(scoreL=12) then
 
                     scoreL<=12;
+                    scoreR<=scoreL;
 				end if;
 			end if;
 		end if;
@@ -342,64 +460,10 @@ p3:	process(clk_1hz, ledjudge)
 	end process p3;
 	
 ------------------------------------
-p4:process(clknear1k)
-        variable cnt:integer range 0 to 37;
-        
-        begin
-       --RW<='0';
-     --EN<=clk_1khz2;
-          if reset1='1' then 
-             cnt:=0;
-             Qdata<="00000001";
-          elsif clknear1k'event and clknear1k='1' then
-          cnt:=cnt+1;
-          end if;
-          case cnt is
-         -------Init LCD1602-----------
-          when 0 =>RS<='0';Qdata<="00111000";--EN<='1';EN<='0'; --0x38,
-          when 1 =>RS<='0';Qdata<="00001100";--EN<='1';EN<='0';   --0x0C
-          when 2 =>RS<='0';Qdata<="00000110";--EN<='1';EN<='0';   --0x06
-          when 3 =>RS<='0';Qdata<="00000001";--EN<='1';EN<='0';   --0x01
-          ----------------------------------
-          when 4 =>RS<='0';Qdata<="10000000";--EN<='1';EN<='0';   --display,0x00+0x80,1h1w
-          -------data display-------------
-
-      when 5=>RS<='1';Qdata<="10100000";--EN<='1';EN<='0'; ---????    
-      when 6=>RS<='1';Qdata<="10100000";--EN<='1';EN<='0'; ---????    
-      when 7=>RS<='1';Qdata<="10100000";--EN<='1';EN<='0'; ---???? 
-      when 8=>RS<='1';Qdata<="10100000";--EN<='1';EN<='0'; ---????     
-      when 9=>RS<='1';Qdata<="10100000";--EN<='1';EN<='0'; ---????     
-      when 10=>RS<='1';Qdata<="01000011";--EN<='1';EN<='0';     ---????   
-      when 11=>RS<='1';Qdata<="01101000";--EN<='1';EN<='0'; ---????     
-      when 12=>RS<='1';Qdata<="01100001";--EN<='1';EN<='0'; ---????    
-      when 13=>RS<='1';Qdata<="01110010";--EN<='1';EN<='0';      ---???? 
-      when 14=>RS<='1';Qdata<="01100111";--EN<='1';EN<='0'; ---????      
-      when 15=>RS<='1';Qdata<="01100101";--EN<='1';EN<='0'; ---????    
-      when 16=>RS<='1';Qdata<="00110000";--EN<='1';EN<='0';    --hun
-      when 17=>RS<='1';Qdata<="00110000";--EN<='1';EN<='0';    --ten  
-      when 18=>RS<='1';Qdata<="00110000";--EN<='1';EN<='0';    --one
-      when 19=>RS<='1';Qdata<="01011100";--EN<='1';EN<='0'; --$  
-      when 20=>RS<='1';Qdata<="10100000";--EN<='1';EN<='0'; -- ????             ---------------------------
-        when 21=>RS<='0';Qdata<="11000000";--éè?¨??ê?μ??????ú10H+80H￡?
-       ----------------------------
-     when 22=>RS<='1';Qdata<="10100000";--- ????   
-     when 23=>RS<='1';Qdata<="10100000";--- ????    
-     when 24=>RS<='1';Qdata<="01010111" ;--W
-     when 25=>RS<='1';Qdata<="01011010";--- Z  
-     when 26=>RS<='1';Qdata<="01101000";--- h    
-     when 27=>RS<='1';Qdata<="01100001";--- a 
-     when 28=>RS<='1';Qdata<="01101111";--- 0  
-     when 29=>RS<='1';Qdata<="01000011";--- c 
-     when 30=>RS<='1';Qdata<="01101000";--- h   
-     when 31=>RS<='1';Qdata<="01100101";--- e 
-     when 32=>RS<='1';Qdata<="01101110";--- n    
-     when 33=>RS<='1';Qdata<="10100000";--- ????  
-     when 34=>RS<='1';Qdata<="10100000";--- ???? 
-     when 35=>RS<='1';Qdata<="10100000";--- ????  
-     when 36=>RS<='1';Qdata<="10100000";--- ????  
-     when 37=>RS<='1';Qdata<="10100000";--- ????       
-     end case;
-      end process p4;
+ p4:process(clk_100hz)
+ begin
+ 
+ end process p4;
 ---------------------------------------------------------------------------
 end;
 ---------------------------------------------------------------------------
